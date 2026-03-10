@@ -85,7 +85,7 @@ export default function ObrigadoPage() {
           className="w-full h-14 bg-[#25D366] hover:bg-[#20BD5A] text-white font-bold text-lg rounded-xl shadow-[0_0_30px_rgba(37,211,102,0.4)] hover:shadow-[0_0_40px_rgba(37,211,102,0.6)] transition-all duration-300"
         >
           <a 
-            href="https://chat.whatsapp.com/SEU_LINK_DO_GRUPO" 
+            href="https://chat.whatsapp.com/FO8lc3s8YE22SRniIJhpHK" 
             target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-3"
