@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { X, Check, Lock } from 'lucide-react'
+import { X, Scale, Users, BarChart3, Rocket, User, Building2, Check, Lock } from 'lucide-react'
 
 interface LeadCaptureModalProps {
   open: boolean
@@ -14,7 +14,7 @@ interface LeadCaptureModalProps {
   onSuccess: () => void
 }
 
-type Step = 1 | 2
+type Step = 1 | 2 | 3 | 4
 
 interface UTMParams {
   utm_source: string
@@ -27,19 +27,33 @@ interface UTMParams {
 
 interface FormData {
   perfil: string
+  equipe: string
+  leads: string
   nome: string
   email: string
   telefone: string
 }
 
 const perfilOptions = [
-  { id: 'advogado', label: 'Sou advogado ou dono de escritório' },
-  { id: 'interessado', label: 'Sou apenas interessado no assunto' },
+  { id: 'advogado', label: 'Sou advogado ou dono de escritório', icon: Scale },
+  { id: 'interessado', label: 'Sou apenas interessado no assunto', icon: User },
 ]
 
-// Proxy endpoint that forwards lead data to Google Sheets.
-// Posting from the server avoids CORS issues and lets us inspect errors.
-const SHEETS_URL = '/api/leads'
+const equipeOptions = [
+  { id: 'apenas-eu', label: 'Apenas eu', icon: User },
+  { id: '2-5', label: 'Entre 2 a 5 pessoas', icon: Users },
+  { id: '6-10', label: 'Entre 6 a 10 pessoas', icon: Building2 },
+  { id: '10+', label: 'Mais de 10 pessoas', icon: Building2 },
+]
+
+const leadsOptions = [
+  { id: 'menos-50', label: 'Menos de 50', icon: BarChart3 },
+  { id: '51-100', label: 'Entre 51 a 100', icon: BarChart3 },
+  { id: '101-400', label: 'Entre 101 a 400', icon: BarChart3 },
+  { id: '400+', label: 'Mais de 400', icon: Rocket },
+]
+
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwI72jE8hP2T9J1kySB_Vf0suTncv5jWDNAuhoWsYFFRvRUT_kse2OsdSXynbGXjt1R/exec'
 
 export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureModalProps) {
   const searchParams = useSearchParams()
@@ -48,6 +62,8 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
   const [leadId] = useState(() => crypto.randomUUID())
   const [formData, setFormData] = useState<FormData>({
     perfil: '',
+    equipe: '',
+    leads: '',
     nome: '',
     email: '',
     telefone: '',
@@ -61,33 +77,6 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
     fbclid: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
-
-  // Marca que o componente foi montado no cliente
-
-  // Funções para salvar e carregar dados do localStorage
-  const saveFormData = (data: Partial<FormData>) => {
-    try {
-      const saved = localStorage.getItem('leadFormData')
-      const current = saved ? JSON.parse(saved) : {}
-      const updated = { ...current, ...data }
-      localStorage.setItem('leadFormData', JSON.stringify(updated))
-    } catch (e) {
-      console.error('Erro ao salvar dados:', e)
-    }
-  }
-
-  const loadFormData = () => {
-    try {
-      const saved = localStorage.getItem('leadFormData')
-      if (saved) {
-        const data = JSON.parse(saved)
-        setFormData(prev => ({ ...prev, nome: data.nome || '', email: data.email || '', telefone: data.telefone || '' }))
-      }
-    } catch (e) {
-      console.error('Erro ao carregar dados:', e)
-    }
-  }
 
   // Captura os parâmetros UTM da URL quando o componente é montado
   useEffect(() => {
@@ -101,18 +90,6 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
     })
   }, [searchParams])
 
-  // Marca que o componente foi montado (apenas na primeira execução)
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  // Carregar dados salvos quando o modal abre (apenas no cliente)
-  useEffect(() => {
-    if (open && isMounted) {
-      loadFormData()
-    }
-  }, [open, isMounted])
-
   const sendPartial = (partial: Partial<FormData>) => {
     const merged = { ...formData, ...partial }
     const body = JSON.stringify({
@@ -121,6 +98,8 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
       name: merged.nome,
       email: merged.email,
       phone: merged.telefone,
+      teamSize: merged.equipe,
+      leadsPerMonth: merged.leads,
       practiceArea: merged.perfil,
       timestamp: new Date().toISOString(),
       utm_source: utmParams.utm_source,
@@ -130,14 +109,12 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
       utm_term: utmParams.utm_term,
       fbclid: utmParams.fbclid,
     })
-    // the proxy will take care of communicating with Google
     fetch(SHEETS_URL, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body,
-    }).catch((err) => {
-      console.error('[Sheets] Partial send failed', err)
-    })
+    }).catch(() => {})
   }
 
   const handleOptionSelect = (field: keyof FormData, value: string) => {
@@ -145,7 +122,7 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
     setFormData(updated)
     sendPartial({ [field]: value })
     // Auto advance to next step after selection
-    if (step < 2) {
+    if (step < 4) {
       setTimeout(() => {
         setStep((prev) => (prev + 1) as Step)
       }, 300)
@@ -172,25 +149,18 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value)
     setFormData(prev => ({ ...prev, telefone: formatted }))
-    saveFormData({ telefone: formatted })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Salvar os dados antes de submeter
-    saveFormData({
-      nome: formData.nome,
-      email: formData.email,
-      telefone: formData.telefone,
-    })
-
     sendPartial({})
 
     try {
       await fetch(SHEETS_URL, {
         method: 'POST',
+        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: leadId,
@@ -198,6 +168,8 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
           name: formData.nome,
           email: formData.email,
           phone: formData.telefone,
+          teamSize: formData.equipe,
+          leadsPerMonth: formData.leads,
           practiceArea: formData.perfil,
           timestamp: new Date().toISOString(),
           utm_source: utmParams.utm_source,
@@ -219,6 +191,8 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
     setStep(1)
     setFormData({
       perfil: '',
+      equipe: '',
+      leads: '',
       nome: '',
       email: '',
       telefone: '',
@@ -233,6 +207,10 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
       case 1:
         return formData.perfil !== ''
       case 2:
+        return formData.equipe !== ''
+      case 3:
+        return formData.leads !== ''
+      case 4:
         return formData.nome !== '' && formData.email !== '' && formData.telefone !== ''
       default:
         return false
@@ -252,6 +230,24 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
         )
       case 2:
         return (
+          <StepContent
+            title="Quantas pessoas atuam na sua equipe comercial/atendimento?"
+            options={equipeOptions}
+            selectedValue={formData.equipe}
+            onSelect={(value) => handleOptionSelect('equipe', value)}
+          />
+        )
+      case 3:
+        return (
+          <StepContent
+            title="Quantos leads você recebe por mês?"
+            options={leadsOptions}
+            selectedValue={formData.leads}
+            onSelect={(value) => handleOptionSelect('leads', value)}
+          />
+        )
+      case 4:
+        return (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -265,51 +261,33 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
               <div>
                 <Input
                   type="text"
-                  name="given-name"
                   placeholder="Nome completo"
                   value={formData.nome}
                   onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                  onBlur={(e) => {
-                    sendPartial({ nome: e.target.value })
-                    saveFormData({ nome: e.target.value })
-                  }}
+                  onBlur={(e) => sendPartial({ nome: e.target.value })}
                   className="h-12 bg-white border-[#E5E5EA] focus:border-[#6C63FF] focus:ring-[#6C63FF]/20"
-                  autoComplete="given-name"
-                  spellCheck="false"
                   required
                 />
               </div>
               <div>
                 <Input
                   type="email"
-                  name="email"
                   placeholder="E-mail"
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  onBlur={(e) => {
-                    sendPartial({ email: e.target.value })
-                    saveFormData({ email: e.target.value })
-                  }}
+                  onBlur={(e) => sendPartial({ email: e.target.value })}
                   className="h-12 bg-white border-[#E5E5EA] focus:border-[#6C63FF] focus:ring-[#6C63FF]/20"
-                  autoComplete="email"
-                  spellCheck="false"
                   required
                 />
               </div>
               <div>
                 <Input
                   type="tel"
-                  name="tel-national"
                   placeholder="(11) 99999-9999"
                   value={formData.telefone}
                   onChange={handlePhoneChange}
-                  onBlur={(e) => {
-                    sendPartial({ telefone: e.target.value })
-                    saveFormData({ telefone: e.target.value })
-                  }}
+                  onBlur={(e) => sendPartial({ telefone: e.target.value })}
                   className="h-12 bg-white border-[#E5E5EA] focus:border-[#6C63FF] focus:ring-[#6C63FF]/20"
-                  autoComplete="tel-national"
-                  spellCheck="false"
                   required
                 />
               </div>
@@ -374,7 +352,7 @@ export function LeadCaptureModal({ open, onOpenChange, onSuccess }: LeadCaptureM
 
 interface StepContentProps {
   title: string
-  options: Array<{ id: string; label: string }>
+  options: Array<{ id: string; label: string; icon: React.ElementType }>
   selectedValue: string
   onSelect: (value: string) => void
 }
@@ -392,6 +370,7 @@ function StepContent({ title, options, selectedValue, onSelect }: StepContentPro
       </h3>
       <div className="space-y-3">
         {options.map((option) => {
+          const Icon = option.icon
           const isSelected = selectedValue === option.id
           return (
             <button
@@ -403,6 +382,9 @@ function StepContent({ title, options, selectedValue, onSelect }: StepContentPro
                   : 'border-[#E5E5EA] bg-white hover:border-[#6C63FF]/50 hover:bg-[#F5F5F7]'
               }`}
             >
+              <div className={`p-2 rounded-lg ${isSelected ? 'bg-[#6C63FF] text-white' : 'bg-[#F5F5F7] text-[#555566]'}`}>
+                <Icon className="w-5 h-5" />
+              </div>
               <span className={`font-medium ${isSelected ? 'text-[#2D2A6E]' : 'text-[#111111]'}`}>
                 {option.label}
               </span>
