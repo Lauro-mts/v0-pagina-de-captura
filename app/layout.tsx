@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description: 'Descubra como colocar Inteligência Artificial na Advocacia que Qualifica e Converte os Seus Leads. Evento 100% gratuito e online.',
   generator: 'v0.app',
   icons: [
-    { url: '/meu-logo.png' },
+    { url: '/favicon.ico' },
     {
       url: '/icon-light-32x32.png',
       media: '(prefers-color-scheme: light)',
