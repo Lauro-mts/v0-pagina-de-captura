@@ -29,7 +29,6 @@ export const metadata: Metadata = {
     },
   ],
   apple: '/apple-icon.png',
-  },
 }
 
 export const viewport: Viewport = {
